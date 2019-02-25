@@ -16,7 +16,7 @@ DATABASE = config['DATABASE']
 IMAP = config['IMAP']
 
 try:
-    conn = MySQLdb.connect(host=DATABASE['host'],user=DATABASE['user'],passwd=DATABASE['password'])
+    conn = MySQLdb.connect(host=DATABASE['HOST'],user=DATABASE['USER'],passwd=DATABASE['PASSWORD'])
     cursor = conn.cursor()
 except Exception as e:
     print(e)
@@ -33,7 +33,6 @@ def validateMail(account):
     return isMail
 
 def authGmail(account, password):
-    # global IMAP
     try:
         gmail = imaplib.IMAP4_SSL(IMAP['SERVER'])
         login = gmail.login(account, password)
@@ -44,7 +43,6 @@ def authGmail(account, password):
         return False
 
 def getGmailClient(account, password):
-    # global IMAP
     try:
         gmail = imaplib.IMAP4_SSL(IMAP['SERVER'])
         login = gmail.login(account, password)
