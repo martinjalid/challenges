@@ -1,2 +1,3 @@
-ldap-python
-MySQLdb
+MySQL-python
+py-bcrypt
+ldap3

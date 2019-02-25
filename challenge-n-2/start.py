@@ -7,26 +7,51 @@ import string
 import sys
 import MySQLdb
 import bcrypt
-# import ldap
-	
-# l = ldap.initialize('ldap://localhost:389')
-# l.search_s('ou=Testing,dc=stroeder,dc=de',ldap.SCOPE_SUBTREE,'(cn=fred*)',['cn','mail'])
-# [('cn=Fred Feuerstein,ou=Testing,dc=stroeder,dc=de', {'cn': ['Fred Feuerstein']})]
-# r = l.search_s('ou=Testing,dc=stroeder,dc=de',ldap.SCOPE_SUBTREE,'(objectClass=*)',['cn','mail'])
-# for dn,entry in r:
-# 	print('Processing',repr(dn))
-# 	handle_ldap_entry(entry)
-# print l
+import configparser
+import smtplib
+import email
+# from email.MIMEMultipart import MIMEMultipart
+# from email.MIMEText import MIMEText
+from ldap3 import Server, Connection, ALL, NTLM
+
+config = configparser.ConfigParser()
+config.read('config.ini')
+
+LDAP = config['LDAP']
+DATABASE = config['DATABASE']
+
+def loginGmail():
+	try:
+		gmail = smtplib.SMTP('smtp.gmail.com', 587)
+		gmail.ehlo()
+		gmail.starttls()
+		gmail.ehlo()
+		gmail.login("martinjalid@gmail.com", "622033940")
+		msg = "Hello!" # The /n separates the message from the headers
+		gmail.sendmail("martinjalid@gmail.com", "martin.jalid@123seguro.com.ar", msg)
+		print(gmail)
+	except Exception as e:
+		print(e)
+
+def connectLdap():
+	try:
+		server = Server(LDAP['HOST'], get_info=ALL)
+		conn = Connection(server, 'cn=admin,dc=meli,dc=com', password=LDAP['PASSWORD'], auto_bind=True)
+	except Exception as e:
+		print(e)
 
 try:
-    conn = MySQLdb.connect(host='localhost',user='root',passwd='root')
+    conn = MySQLdb.connect(host=DATABASE['HOST'],user=DATABASE['USER'],passwd=DATABASE['PASSWORD'])
     cursor = conn.cursor()
 except Exception as e:
     print(e)
     sys.exit(1)
 
 def generatePassword():
-	return ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(10))
+	try:
+		return ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(10))
+	except Exception as e:
+		print(e)
 
 def createDatabase():
 	try:
@@ -37,18 +62,49 @@ def createDatabase():
 	    print(e)
 
 def parseCsv():
-	users = []
-	with open('usuarios.csv', mode = 'r') as csv_file:
-		csv_reader = csv.reader(csv_file, delimiter = ',')
-		for row in csv_reader:
-			users.append({'Name': row[0], 'Surname': row[1], 'Mail': row[2]})
+	try:
+		users = []
+		with open(config['CSV']['PATH'], mode = 'r') as csv_file:
+			csv_reader = csv.reader(csv_file, delimiter = ',')
+			for row in csv_reader:
+				users.append({'Name': row[0].strip(), 'Surname': row[1].strip(), 'Mail': row[2].strip()})
 
-	return users
+		return users
+	except Exception as e:
+		print(e)
 
+def createUsers(users):
+	for user in users:
+		createUserInDB(user)
+		createUserInLDAP(user)
+		# sendMail(user['Mail'])
+
+def createUserInDB(user):
+	print(user, 'DB')
+
+def createUserInLDAP(user):
+	print(user, 'LADP')
+
+def sendMail(mail):
+	fromaddr = "martinjalid@gmail.com"
+	toaddr = "martin.jalid@123seguro.com.ar"
+	msg = MIMEMultipart()
+	msg['From'] = fromaddr
+	msg['To'] = toaddr
+	msg['Subject'] = "Python email"
+	body = "Python test mail"
+	msg.attach(MIMEText(body, 'plain'))
+	text = msg.as_string()
+	gmail.sendmail(fromaddr, toaddr, text)
+	print('Mail sended to: '+ mail)
+
+# loginGmail()
 # createDatabase()
-users = parseCsv();
-password = generatePassword()
-hashed = bcrypt.hashpw(password, bcrypt.gensalt())
+connectLdap()
 
-for user in users:
-	print user
+users = parseCsv()
+createUsers(users)
+
+password = generatePassword()
+
+hashed = bcrypt.hashpw(password, bcrypt.gensalt())
