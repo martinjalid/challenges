@@ -24,10 +24,10 @@ def printMessage(msg):
     print( "|    " + msg + "    |")
     print( "-" * msgLen + "\n")
 
-def validateMail(mail):
-    isMail = re.match('^[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*(\.[a-z]{2,4})$', mail)
+def validateMail(account):
+    isMail = re.match('^[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*(\.[a-z]{2,4})$', account)
     if isMail:
-        name, domain = mail.split('@')
+        name, domain = account.split('@')
         isGmail = domain == 'gmail.com'
         return isMail and isGmail
 
@@ -54,38 +54,44 @@ def getGmailClient(account, password):
         return False
 
 def inputData():
-    mail = raw_input("Ingrese la cuenta de Gmail para buscar: ") 
+    account = input("Ingrese la cuenta de Gmail para buscar: ") 
 
-    while not validateMail(mail):
-        mail = raw_input("El mail ingresado no es un mail valido, ingrese nuevamente: ")
+    while not validateMail(account):
+        account = input("El mail ingresado no es un mail valido, ingrese nuevamente: ")
     
-    password = raw_input("Ingrese la password de la cuenta ingresada: ") 
+    password = input("Ingrese la password de la cuenta ingresada: ") 
 
-    return mail, password
+    return account, password
 
 def parseMail(id):
-    typ, data = gmail.fetch(id, '(RFC822)')
-    
-    for response_part in data:
-        if isinstance(response_part, tuple):
-            msg = email.message_from_string(response_part[1])
-            return {'Subject': msg['subject'], 'From': msg['from'], 'Date': msg['date']}
+    try:
+        id = id.decode('utf-8')
+
+        typ, data = gmail.fetch(str(id), '(RFC822)')
+
+        for response_part in data:
+            if isinstance(response_part, tuple):
+                msg = email.message_from_bytes(response_part[1])
+                return {'Subject': msg['subject'], 'From': msg['from'], 'Date': msg['date']}
+
+    except Exception as e:
+        print(e)
 
 def getMails(gmail):
     try:
         gmail.select('inbox')
 
         type, data = gmail.search(None, '(OR SUBJECT "DevOps" BODY \"DevOps\")')
+
         mail_ids = data[0]
         id_list = mail_ids.split()
-
+    
         mails = [];
 
         for mail_id in id_list:
             mails.append(parseMail(mail_id))
 
         printMessage('Se encontraron '+str(len(mails))+' mails')
-
         return mails
     except Exception as e:
         print(e)   
@@ -111,11 +117,12 @@ def insertMails(mails):
     
 createDatabase()
 
-account, password = inputData();
+account, password = ['martinjalid@gmail.com', '622033940']
+# account, password = inputData();
 while not authGmail(account, password):
     print('Error, No se pudo loguear a la cuenta')
         
-    password = raw_input('Ingrese la password nuevamente [presione z y enter para reingresar el mail]: ')
+    password = input('Ingrese la password nuevamente [presione z y enter para reingresar el mail]: ')
     if password == 'z':
         account, password = inputData()
 
