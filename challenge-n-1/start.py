@@ -7,12 +7,16 @@ import re
 import time
 import sys
 import email
+import configparser
 
-IMAP_SERVER = "imap.gmail.com"
-IMAP_PORT = 993
+config = configparser.ConfigParser()
+config.read('config.ini')
+
+DATABASE = config['DATABASE']
+IMAP = config['IMAP']
 
 try:
-    conn = MySQLdb.connect(host='localhost',user='root',passwd='root')
+    conn = MySQLdb.connect(host=DATABASE['host'],user=DATABASE['user'],passwd=DATABASE['password'])
     cursor = conn.cursor()
 except Exception as e:
     print(e)
@@ -26,15 +30,12 @@ def printMessage(msg):
 
 def validateMail(account):
     isMail = re.match('^[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*(\.[a-z]{2,4})$', account)
-    if isMail:
-        name, domain = account.split('@')
-        isGmail = domain == 'gmail.com'
-        return isMail and isGmail
+    return isMail
 
 def authGmail(account, password):
-    global IMAP_SERVER
+    # global IMAP
     try:
-        gmail = imaplib.IMAP4_SSL(IMAP_SERVER)
+        gmail = imaplib.IMAP4_SSL(IMAP['SERVER'])
         login = gmail.login(account, password)
     
         return login[0] == 'OK'
@@ -43,9 +44,9 @@ def authGmail(account, password):
         return False
 
 def getGmailClient(account, password):
-    global IMAP_SERVER
+    # global IMAP
     try:
-        gmail = imaplib.IMAP4_SSL(IMAP_SERVER)
+        gmail = imaplib.IMAP4_SSL(IMAP['SERVER'])
         login = gmail.login(account, password)
     
         return gmail
@@ -117,8 +118,7 @@ def insertMails(mails):
     
 createDatabase()
 
-account, password = ['martinjalid@gmail.com', '622033940']
-# account, password = inputData();
+account, password = inputData();
 while not authGmail(account, password):
     print('Error, No se pudo loguear a la cuenta')
         
