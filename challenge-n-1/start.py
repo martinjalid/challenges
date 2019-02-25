@@ -11,7 +11,7 @@ import MySQLdb
 SMTP_SERVER = "imap.gmail.com"
 SMTP_PORT = 993
 
-conn = MySQLdb.connect(host='localhost',user='root',passwd='')
+conn = MySQLdb.connect(host='localhost',user='root',passwd='root')
 cursor = conn.cursor()
 
 def printMessage(msg):
