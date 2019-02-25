@@ -1,24 +1,28 @@
 #!/usr/bin/env python
 
+import imaplib
+import MySQLdb
 import glob
 import re
-import smtplib
 import time
-import imaplib
+import sys
 import email
-import MySQLdb
 
-SMTP_SERVER = "imap.gmail.com"
-SMTP_PORT = 993
+IMAP_SERVER = "imap.gmail.com"
+IMAP_PORT = 993
 
-conn = MySQLdb.connect(host='localhost',user='root',passwd='root')
-cursor = conn.cursor()
+try:
+    conn = MySQLdb.connect(host='localhost',user='root',passwd='root')
+    cursor = conn.cursor()
+except Exception as e:
+    print(e)
+    sys.exit(1)
 
 def printMessage(msg):
     msgLen = len(msg) + 10
-    print "-" * msgLen
-    print "|    " + msg + "    |"
-    print "-" * msgLen + "\n"
+    print( "-" * msgLen)
+    print( "|    " + msg + "    |")
+    print( "-" * msgLen + "\n")
 
 def validateMail(mail):
     isMail = re.match('^[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*(\.[a-z]{2,4})$', mail)
@@ -28,9 +32,9 @@ def validateMail(mail):
         return isMail and isGmail
 
 def authGmail(account, password):
-    global SMTP_SERVER
+    global IMAP_SERVER
     try:
-        gmail = imaplib.IMAP4_SSL(SMTP_SERVER)
+        gmail = imaplib.IMAP4_SSL(IMAP_SERVER)
         login = gmail.login(account, password)
     
         return login[0] == 'OK'
@@ -39,9 +43,9 @@ def authGmail(account, password):
         return False
 
 def getGmailClient(account, password):
-    global SMTP_SERVER
+    global IMAP_SERVER
     try:
-        gmail = imaplib.IMAP4_SSL(SMTP_SERVER)
+        gmail = imaplib.IMAP4_SSL(IMAP_SERVER)
         login = gmail.login(account, password)
     
         return gmail
@@ -87,12 +91,10 @@ def getMails(gmail):
         print(e)   
 
 def createDatabase():
-    printMessage('Creando la base de datos')
     try:
-        cursor.execute("DROP DATABASE IF EXISTS challenge")
-        cursor.execute("CREATE DATABASE IF NOT EXISTS challenge")
-        cursor.execute("USE challenge")
-        cursor.execute("CREATE TABLE IF NOT EXISTS mails(id INT AUTO_INCREMENT PRIMARY KEY,from_email TEXT, subject TEXT, date TEXT)")
+        cursor.execute("CREATE DATABASE IF NOT EXISTS challenge1")
+        cursor.execute("USE challenge1")
+        cursor.execute("CREATE TABLE IF NOT EXISTS mails(id INT AUTO_INCREMENT PRIMARY KEY,from_email VARCHAR(100), subject TEXT, date VARCHAR(100))")
     except Exception as e:
         print(e)
 
@@ -107,10 +109,9 @@ def insertMails(mails):
     except Exception as e:
         print(e)
     
-account = "martinjalid@gmail.com"
-password = "622033940"
+createDatabase()
 
-#mail, password = inputData();
+account, password = inputData();
 while not authGmail(account, password):
     print('Error, No se pudo loguear a la cuenta')
         
@@ -122,7 +123,5 @@ printMessage('Logueado Correctamente')
 
 gmail = getGmailClient(account, password)
 mails = getMails(gmail)
-
-createDatabase()
 
 insertMails(mails)
