@@ -12,7 +12,7 @@ import smtplib
 import email
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from ldap3 import Server, Connection, ALL, NTLM
+from ldap3 import Server, Connection, ALL, MODIFY_REPLACE
 
 config = configparser.ConfigParser()
 config.read('config.ini')
@@ -23,12 +23,13 @@ GMAIL = config['GMAIL']
 
 def loginGmail():
 	try:
-		passwor_gmail = input('Pass Gmail')
+		passwor_gmail = input('Pass Gmail: ')
 		gmail = smtplib.SMTP('smtp.gmail.com', 587)
 		gmail.ehlo()
 		gmail.starttls()
 		gmail.ehlo()
-		gmail.login(GMAIL["ACCOUNT"], GMAIL['PASSWORD'])
+		gmail.login(GMAIL["ACCOUNT"], password_gmail)
+		# gmail.login(GMAIL["ACCOUNT"], GMAIL['PASSWORD'])
 		return gmail;
 	except Exception as e:
 		print(e)
@@ -37,7 +38,6 @@ def connectLdap():
 	try:
 		server = Server(LDAP['HOST'], get_info=ALL)
 		connLdap = Connection(server, 'cn=admin,dc=meli,dc=com', password=LDAP['PASSWORD'], auto_bind=True)
-		print(server, connLdap)
 		return connLdap
 	except Exception as e:
 		print(e)
@@ -79,39 +79,37 @@ def parseCsv():
 def createUsers(users):
 	for user in users:
 		password = generatePassword()
-		
 		user['Password'] = password
-		# createUserInDB(user)
+		user['HashedPassword'] = bcrypt.hashpw(user['Password'], bcrypt.gensalt())
+		createUserInDB(user)
 		createUserInLDAP(user)
-		# sendMail(user)
+		sendMail(user)
 
 def createUserInDB(user):
 	try:
-		hashed = bcrypt.hashpw(user['Password'], bcrypt.gensalt())
 		sql = "INSERT INTO users(name, surname, mail, password) VALUES(%s, %s, %s, %s)"
-		values = (user['Name'], user['Surname'], user['Mail'], hashed)
+		values = (user['Name'], user['Surname'], user['Mail'], user['HashedPassword'])
 		cursor.execute(sql, values)
 		conn.commit()
 	except Exception as e:
 		print(e)
 
 def createUserInLDAP(user):
-	domain = 'meli.com'
-	username = 'john.smith'
-	useremail = 'john@smith.com'
-	userpswd = 'AbcDef$$1234567'
-	userdn = 'CN=john.smith,OU=Users,DC=meli,DC=com'
+	username = user['Name'].lower()+'.'+user['Surname'].lower()
+	useremail = user['Mail']
+	userpswd = user['Password']
+	exists = connLdap.search('cn={},ou=Users,dc=meli,dc=com'.format(username), ['(objectclass=inetorgperson)'])
+	if not exists:
+		connLdap.add('ou=Users,dc=meli,dc=com', 'organizationalUnit')
+		connLdap.add('cn={},ou=Users,dc=meli,dc=com'.format(username), ['inetorgperson'], {
+			'givenName': user['Name'], 
+			'sn': user['Surname'], 
+			'mail': useremail, 
+			'userPassword': userpswd,
+		})
 
-	connLdap.add(userdn, attributes={
-	   'objectClass': ['organizationalPerson', 'person', 'top', 'user'],
-	   'sAMAccountName': username,
-	   'userPrincipalName': "{}@{}".format(username, domain),
-	   'displayName': username,
-	   'mail': useremail  # optional
-	})
-
-	result = connLdap.add_s(dn, ldap.modlist.addModlist(modlist))
-	print(connLdap.result)
+	connLdap.search('cn={},ou=Users,dc=meli,dc=com'.format(username), '(objectclass=inetorgperson)', attributes=['sn', 'userPassword', 'shadowMax'])
+	print(connLdap.entries, userpswd)
 
 def sendMail(user):
 	fromaddr = GMAIL['ACCOUNT']
@@ -124,7 +122,6 @@ def sendMail(user):
 	msg.attach(MIMEText(body, 'plain'))
 	text = msg.as_string()
 	gmail.sendmail(fromaddr, toaddr, text)
-	print(gmail)
 
 gmail = loginGmail()
 createDatabase()
