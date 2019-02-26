@@ -21,9 +21,16 @@ LDAP = config['LDAP']
 DATABASE = config['DATABASE']
 GMAIL = config['GMAIL']
 
+def printMessage(msg):
+    msgLen = len(msg) + 10
+    print( "-" * msgLen)
+    print( "|    " + msg + "    |")
+    print( "-" * msgLen + "\n")
+
 def loginGmail():
 	try:
-		passwor_gmail = input('Pass Gmail: ')
+		password_gmail = 'PASS'
+		# passwor_gmail = input('Pass Gmail: ')
 		gmail = smtplib.SMTP('smtp.gmail.com', 587)
 		gmail.ehlo()
 		gmail.starttls()
@@ -38,6 +45,7 @@ def connectLdap():
 	try:
 		server = Server(LDAP['HOST'], get_info=ALL)
 		connLdap = Connection(server, 'cn=admin,dc=meli,dc=com', password=LDAP['PASSWORD'], auto_bind=True)
+		print(server.info)
 		return connLdap
 	except Exception as e:
 		print(e)
@@ -81,9 +89,9 @@ def createUsers(users):
 		password = generatePassword()
 		user['Password'] = password
 		user['HashedPassword'] = bcrypt.hashpw(user['Password'], bcrypt.gensalt())
-		createUserInDB(user)
+		# createUserInDB(user)
 		createUserInLDAP(user)
-		sendMail(user)
+		# sendMail(user)
 
 def createUserInDB(user):
 	try:
@@ -98,17 +106,19 @@ def createUserInLDAP(user):
 	username = user['Name'].lower()+'.'+user['Surname'].lower()
 	useremail = user['Mail']
 	userpswd = user['Password']
-	exists = connLdap.search('cn={},ou=Users,dc=meli,dc=com'.format(username), ['(objectclass=inetorgperson)'])
+	exists = connLdap.search('cn={},ou=Users,dc=meli,dc=com'.format(username), '(objectclass=inetorgperson)')
 	if not exists:
 		connLdap.add('ou=Users,dc=meli,dc=com', 'organizationalUnit')
-		connLdap.add('cn={},ou=Users,dc=meli,dc=com'.format(username), ['inetorgperson'], {
+		connLdap.add('cn={},ou=Users,dc=meli,dc=com'.format(username), ['inetorgperson', 'shadowAccount'], {
 			'givenName': user['Name'], 
 			'sn': user['Surname'], 
 			'mail': useremail, 
 			'userPassword': userpswd,
+			'shadowLastChange': 0,
+			'shadowMin': 0
 		})
 
-	connLdap.search('cn={},ou=Users,dc=meli,dc=com'.format(username), '(objectclass=inetorgperson)', attributes=['sn', 'userPassword', 'shadowMax'])
+	connLdap.search('cn={},ou=Users,dc=meli,dc=com'.format(username), '(objectclass=inetorgperson)', attributes=['sn', 'userPassword'])
 	print(connLdap.entries, userpswd)
 
 def sendMail(user):
@@ -127,4 +137,5 @@ gmail = loginGmail()
 createDatabase()
 connLdap = connectLdap()
 users = parseCsv()
+printMessage('{} usuarios para crear'.format(len(users)))
 createUsers(users)
