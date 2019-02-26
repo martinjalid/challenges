@@ -23,6 +23,7 @@ GMAIL = config['GMAIL']
 
 def loginGmail():
 	try:
+		passwor_gmail = input('Pass Gmail')
 		gmail = smtplib.SMTP('smtp.gmail.com', 587)
 		gmail.ehlo()
 		gmail.starttls()
@@ -36,6 +37,7 @@ def connectLdap():
 	try:
 		server = Server(LDAP['HOST'], get_info=ALL)
 		connLdap = Connection(server, 'cn=admin,dc=meli,dc=com', password=LDAP['PASSWORD'], auto_bind=True)
+		print(server, connLdap)
 		return connLdap
 	except Exception as e:
 		print(e)
@@ -94,10 +96,11 @@ def createUserInDB(user):
 		print(e)
 
 def createUserInLDAP(user):
+	domain = 'meli.com'
 	username = 'john.smith'
 	useremail = 'john@smith.com'
 	userpswd = 'AbcDef$$1234567'
-	userdn = 'CN=john.smith,OU=Users,DC=directory,DC=local'
+	userdn = 'CN=john.smith,OU=Users,DC=meli,DC=com'
 
 	connLdap.add(userdn, attributes={
 	   'objectClass': ['organizationalPerson', 'person', 'top', 'user'],
