@@ -44,7 +44,8 @@ def loginGmail():
 def connectLdap():
 	try:
 		server = Server(LDAP['HOST'], get_info=ALL)
-		connLdap = Connection(server, 'cn=admin,dc=meli,dc=com', password=LDAP['PASSWORD'], auto_bind=True)
+		dn = "cn={},dc={},dc={}".format(LDAP['USER'], LDAP['DC1'], LDAP['DC2'])
+		connLdap = Connection(server, dn, password=LDAP['PASSWORD'], auto_bind=True)
 		print(server.info)
 		return connLdap
 	except Exception as e:
@@ -115,7 +116,7 @@ def createUserInLDAP(user):
 			'mail': useremail, 
 			'userPassword': userpswd,
 			'shadowLastChange': 0,
-			'shadowMin': 0
+			'shadowMin': 1
 		})
 
 	connLdap.search('cn={},ou=Users,dc=meli,dc=com'.format(username), '(objectclass=inetorgperson)', attributes=['sn', 'userPassword'])
