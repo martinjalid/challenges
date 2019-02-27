@@ -1,0 +1,4 @@
+1) Instalar requisitos de python: pip install python-ldap y pip install py-bcrypt
+2) Configurar accesos de ldap, DB y gmail. Tambien configurar el path del csv en el archivo config.ini
+3) Correr el script start.py
+4) Listo!
